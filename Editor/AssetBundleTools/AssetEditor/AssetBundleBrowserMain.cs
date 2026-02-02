@@ -195,9 +195,10 @@ namespace AssetBundleBrowser
                 Debug.LogError(e);
                 instance.Close();
             }
-            
+
         }
 
+        private Mode tempMode;
         void ModeToggle()
         {
             GUILayout.BeginHorizontal();
@@ -212,7 +213,10 @@ namespace AssetBundleBrowser
                         m_ManageTab.ForceReloadData();
                     break;
                 case Mode.Builder:
-                    GUILayout.Space(m_RefreshTexture.width + k_ToolbarPadding);
+                    //GUILayout.Space(m_RefreshTexture.width + k_ToolbarPadding);
+                    clicked = GUILayout.Button(m_RefreshTexture);
+                    if (clicked)
+                        m_BuildTab.RepaintAssetBundleClassification();
                     break;
                 case Mode.Inspect:
                     clicked = GUILayout.Button(m_RefreshTexture);
@@ -226,6 +230,15 @@ namespace AssetBundleBrowser
                         m_UpLoadABTab.ResetPathToDefault();
                     }
                     break;
+            }
+            if (tempMode != m_Mode)
+            {
+                tempMode = m_Mode;
+                //Debug.Log($"ÇÐ»»Ò³Ç©{tempMode}");
+                if (tempMode == Mode.Builder)
+                {
+                    m_BuildTab.RepaintAssetBundleClassification();
+                }
             }
 
             float toolbarWidth = position.width - k_ToolbarPadding * 4 - m_RefreshTexture.width;

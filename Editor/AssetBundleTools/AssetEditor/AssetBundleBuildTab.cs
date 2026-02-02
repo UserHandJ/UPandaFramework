@@ -3,9 +3,9 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-
 using AssetBundleBrowser.AssetBundleDataSource;
 using UPandaGF;
+using System;
 
 namespace AssetBundleBrowser
 {
@@ -18,6 +18,7 @@ namespace AssetBundleBrowser
 
         [SerializeField]
         private bool m_AdvancedSettings;
+       
 
         [SerializeField]
         private Vector2 m_ScrollPosition;
@@ -46,6 +47,8 @@ namespace AssetBundleBrowser
 
         private AssetBundleInspectTab m_InspectTab;
         private static AssetBundleBrowserMain m_Main;
+
+        private AssetBundleClassificationWindow assetBundleClassification;
 
         [SerializeField]
         private BuildTabData m_UserData;
@@ -173,6 +176,13 @@ namespace AssetBundleBrowser
             {
                 ResetPathToDefault();
             }
+            if (assetBundleClassification == null) assetBundleClassification = new AssetBundleClassificationWindow();
+            RepaintAssetBundleClassification();
+        }
+
+        public void RepaintAssetBundleClassification()
+        {
+            assetBundleClassification.ShowWindow();
         }
 
         internal void OnGUI()
@@ -292,16 +302,22 @@ namespace AssetBundleBrowser
 
             // build.
             EditorGUILayout.Space();
-            if (GUILayout.Button("Build Window"))
-            {
-                AssetBundleClassificationWindow.ShowWindow();
-                //EditorApplication.delayCall += ExecuteBuild;
-            }
+            //if (GUILayout.Button("Build Window"))
+            //{
+            //    //AssetBundleClassificationWindow.ShowWindow();
+            //    //EditorApplication.delayCall += ExecuteBuild;
+            //}
+           
+            assetBundleClassification.OnGUI();
+
             GUILayout.EndVertical();
             EditorGUILayout.EndScrollView();
         }
         public void ExecuteBuild()
         {
+            // 1. 记录开始时间（Ticks为100纳秒单位）
+            long startTicks = System.DateTime.UtcNow.Ticks;
+
             if (AssetBundleModel.Model.DataSource.CanSpecifyBuildOutputDirectory)
             {
                 if (string.IsNullOrEmpty(m_UserData.m_OutputPath))
@@ -309,7 +325,7 @@ namespace AssetBundleBrowser
 
                 if (string.IsNullOrEmpty(m_UserData.m_OutputPath)) //in case they hit "cancel" on the open browser
                 {
-                    Debug.LogError("AssetBundle Build: No valid output path for build.");
+                    UnityEngine.Debug.LogError("AssetBundle Build: No valid output path for build.");
                     return;
                 }
 
@@ -332,7 +348,7 @@ namespace AssetBundleBrowser
                         }
                         catch (System.Exception e)
                         {
-                            Debug.LogException(e);
+                            UnityEngine.Debug.LogException(e);
                         }
                     }
                 }
@@ -362,6 +378,10 @@ namespace AssetBundleBrowser
             if (m_CopyToStreaming.state)
                 DirectoryCopy(m_UserData.m_OutputPath, m_streamingPath);
 
+            // 2. 计算耗时并输出（转换为毫秒）
+            long endTicks = System.DateTime.UtcNow.Ticks;
+            double durationMs = (endTicks - startTicks) / 10000.0; // 1 Tick = 100纳秒 → 1毫秒 = 10000 Ticks 1毫秒等于1,000,000纳秒
+            UnityEngine.Debug.Log($"打包执行耗时：{(durationMs/1000):F2} 秒");
         }
 
         public BuildAssetBundleOptions GetOpt()
@@ -379,7 +399,7 @@ namespace AssetBundleBrowser
                         opt |= tog.option;
                 }
             }
-            Debug.Log($"BuildAssetBundleOptions:{opt.ToString()}");
+            UnityEngine.Debug.Log($"BuildAssetBundleOptions:{opt.ToString()}");
             return opt;
         }
 
