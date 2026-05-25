@@ -72,6 +72,21 @@ public class SceneMgr : LazySingletonBase<SceneMgr>
         EventCenter.Instance.EventTrigger(new SceneMgr_SceneAsynLoadProgress(ao.progress));
         Callback?.Invoke();
     }
+
+    public string GetActiveScene()
+    {
+        return SceneManager.GetActiveScene().name;
+    }
+
+    public AsyncOperation UnloadSceneAsync(string sceneName)
+    {
+        return SceneManager.UnloadSceneAsync(sceneName);
+    }
+
+    public AsyncOperation UnloadSceneAsync(int sceneIndex)
+    {
+        return SceneManager.UnloadSceneAsync(sceneIndex);
+    }
 }
 
 /// <summary>

@@ -1,16 +1,10 @@
 using AssetBundleBrowser;
-using GluonGui.WorkspaceWindow.Views.WorkspaceExplorer;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
-
+using UPandaGF.GFEditor;
 /// <summary>
 /// 上传更新AB包
 /// </summary>
@@ -22,8 +16,14 @@ internal class UpLoadABEditor
         FTP = 1,
         HTTP = 2,
     }
-    //通讯方式
-    public ContactMethod contactMethod;
+    [System.Serializable]
+    public class UpLoadABEditorConfig
+    {
+        public ContactMethod contactMethod = ContactMethod.None;
+        public string targetDirectory = "";
+    }
+
+
     private UpLoadFTP upLoadFTP;
     //public UpLoadHTTP upLoadHTTP;
     [SerializeField]
@@ -34,19 +34,22 @@ internal class UpLoadABEditor
     //本地AB包路径
     public string LocalABPath;
 
+    public string configName = "UpLoadABEditorConfig";
+    public UpLoadABEditorConfig config;
+
     public void OnEnable(AssetBundleBrowserMain bm)
     {
         abMainE = bm;
-        int c = EditorPrefs.GetInt("UpLoadABEditor_contactMethod", (int)contactMethod);
-        contactMethod = (ContactMethod)c;
+        config = UPandaGFConfig.LoadJsonConfig<UpLoadABEditorConfig>(configName);
         LocalABPath = abMainE.m_BuildTabData.m_OutputPath;
+        Debug.Log($"UpLoadABEditor Enable!!{config.targetDirectory}");
+
     }
 
     private FTPUpLoadABConfig GetFTPConfig()
     {
-        if (contactMethod == ContactMethod.FTP && upLoadFTP == null)
+        if (config.contactMethod == ContactMethod.FTP && upLoadFTP == null)
         {
-           
             upLoadFTP = new UpLoadFTP(abMainE.m_BuildTabData.m_BuildTarget.ToString());
         }
         return upLoadFTP.GetConfig;
@@ -63,13 +66,13 @@ internal class UpLoadABEditor
         if (!LocalABPath.Equals(abMainE.m_BuildTabData.m_OutputPath))
             LocalABPath = abMainE.m_BuildTabData.m_OutputPath;
         EditorGUILayout.LabelField("本地资源路径", LocalABPath);
-        if (GUILayout.Button("创建AB包对比文件"))
-        {
-            CreateABCompareFile();
-        }
+        //if (GUILayout.Button("创建AB包对比文件"))
+        //{
+        //    CreateABCompareFile();
+        //}
         EditorGUILayout.Space(10);
-        contactMethod = (ContactMethod)EditorGUILayout.EnumPopup("上传方式", contactMethod);
-        switch (contactMethod)
+        config.contactMethod = (ContactMethod)EditorGUILayout.EnumPopup("上传方式", config.contactMethod);
+        switch (config.contactMethod)
         {
             case ContactMethod.FTP:
                 FTPGUI();
@@ -81,14 +84,47 @@ internal class UpLoadABEditor
         EditorGUILayout.Space(30);
         if (GUILayout.Button("复制资源到StreamingAssets"))
         {
-            //string savePath = EditorUtility.OpenFolderPanel("复制路径选择", Application.streamingAssetsPath, string.Empty);
-            string savePath = LocalABPath.Substring(LocalABPath.IndexOf("Assets") + "Assets".Length);
+            //string savePath = LocalABPath.Substring(LocalABPath.IndexOf("Assets") + "Assets".Length);//AssetBundle放到Assets路径下用这个
+            string savePath = $"/{LocalABPath}";
             savePath = Application.streamingAssetsPath + savePath;
             if (!Directory.Exists(savePath))
             {
                 Directory.CreateDirectory(savePath);
             }
             MoveABToStreamingAssets(savePath);
+        }
+        EditorGUILayout.Space(30);
+        EditorGUILayout.LabelField("目标路径：", config.targetDirectory);
+        if (GUILayout.Button("选择目标路径"))
+        {
+            config.targetDirectory = EditorUtility.OpenFolderPanel("目标路径选择", config.targetDirectory, string.Empty);
+        }
+        if (GUILayout.Button("复制资源到目标路径"))
+        {
+            if (!Directory.Exists(LocalABPath))
+            {
+                Debug.LogError($"AssetBundle源目录不存在: {LocalABPath}");
+                return;
+            }
+
+            if (!Directory.Exists(config.targetDirectory))
+            {
+                Debug.LogError($"目标路径不存在！: {config.targetDirectory}");
+                return;
+            }
+
+            Debug.Log($"开始复制AssetBundle: {LocalABPath} -> {config.targetDirectory}");
+            ClearTargetDirectory();
+            // 复制所有文件和子目录
+            CopyDirectory(LocalABPath, config.targetDirectory);
+
+            Debug.Log($"AssetBundle复制完成！目标位置: {config.targetDirectory}");
+
+            // 刷新资源数据库
+            AssetDatabase.Refresh();
+
+            // 打开目标目录
+            EditorUtility.RevealInFinder(config.targetDirectory);
         }
 
         EditorGUILayout.Space(20);
@@ -114,7 +150,7 @@ internal class UpLoadABEditor
         if (GUILayout.Button("上传AB包和对比文件"))
         {
             DirectoryInfo directory = Directory.CreateDirectory(LocalABPath);
-            if (contactMethod == ContactMethod.FTP)
+            if (config.contactMethod == ContactMethod.FTP)
             {
                 upLoadFTP.UpLoadAllABFile(LocalABPath);
             }
@@ -162,7 +198,7 @@ internal class UpLoadABEditor
     /// </summary>
     public void ResetPathToDefault()
     {
-        if (contactMethod == ContactMethod.FTP)
+        if (config.contactMethod == ContactMethod.FTP)
         {
             upLoadFTP.ResetData(abMainE.m_BuildTabData.m_BuildTarget.ToString());
             Debug.Log("FTP已重置");
@@ -174,9 +210,8 @@ internal class UpLoadABEditor
     /// </summary>
     public void SaveData()
     {
-        EditorPrefs.SetInt("UpLoadABEditor_contactMethod", (int)contactMethod);
-        if (contactMethod == ContactMethod.FTP) upLoadFTP.SaveData();
-        Debug.Log("界面信息已保存");
+        UPandaGFConfig.SaveJsonConfig(config, configName);
+        if (config.contactMethod == ContactMethod.FTP) upLoadFTP.SaveData();
     }
 
     /// <summary>
@@ -258,32 +293,8 @@ internal class UpLoadABEditor
 
     private void MoveABToStreamingAssets(string savePath)
     {
-        string assetsKeyword = "Assets";
-        int startIndex = savePath.IndexOf(assetsKeyword); // 定位"Assets"的起始位置
-        string result = savePath.Substring(startIndex); // 从"Assets"开始截取
-
-
-        if (startIndex == -1)
-        {
-            Debug.LogError("路径不在Assets路径内");
-            return;
-        }
-
-        DirectoryInfo directory = Directory.CreateDirectory(LocalABPath);
-        FileInfo[] fileInfos = directory.GetFiles();
-        foreach (var file in fileInfos)
-        {
-            if (IsABAssets(file))
-            {
-                int startIndex1 = file.FullName.IndexOf(assetsKeyword);
-                string result1 = file.FullName.Substring(startIndex1); // 从"Assets"开始截取
-                AssetDatabase.CopyAsset(result1, result + $"/{file.Name}");
-                Debug.Log(result1 + " 已拷贝至：" + result + $"/{file.Name}");
-            }
-        }
+        CopyDirectory(LocalABPath, savePath);
         AssetDatabase.Refresh();
-
-
     }
 
 
@@ -350,5 +361,73 @@ internal class UpLoadABEditor
             return sb.ToString();
         }
 
+    }
+
+    /// <summary>
+    /// 清空目标目录
+    /// </summary>
+    private void ClearTargetDirectory()
+    {
+        if (Directory.Exists(config.targetDirectory))
+        {
+            Debug.Log($"清空目标目录: {config.targetDirectory}");
+
+            // 获取所有文件
+            string[] files = Directory.GetFiles(config.targetDirectory, "*", SearchOption.AllDirectories);
+            foreach (string file in files)
+            {
+                File.Delete(file);
+            }
+
+            // 删除所有子目录（除了根目录）
+            string[] directories = Directory.GetDirectories(config.targetDirectory);
+            foreach (string dir in directories)
+            {
+                Directory.Delete(dir, true);
+            }
+
+            Debug.Log($"已删除 {files.Length} 个文件和 {directories.Length} 个目录");
+        }
+        else
+        {
+            // 如果目录不存在，创建它
+            Directory.CreateDirectory(config.targetDirectory);
+            Debug.Log($"创建目标目录: {config.targetDirectory}");
+        }
+    }
+
+    /// <summary>
+    /// 复制目录
+    /// </summary>
+    private static void CopyDirectory(string sourceDir, string targetDir)
+    {
+        // 确保目标目录存在
+        if (!Directory.Exists(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        // 复制所有文件
+        string[] files = Directory.GetFiles(sourceDir);
+        foreach (string file in files)
+        {
+            if (Path.GetExtension(file) == ".meta")
+            {
+                continue;
+            }
+            string fileName = Path.GetFileName(file);
+            string destFile = Path.Combine(targetDir, fileName);
+            File.Copy(file, destFile, true);
+            Debug.Log($"复制文件: {fileName}");
+        }
+
+        // 递归复制子目录
+        string[] subDirectories = Directory.GetDirectories(sourceDir);
+        foreach (string subDir in subDirectories)
+        {
+            string dirName = Path.GetFileName(subDir);
+            string destDir = Path.Combine(targetDir, dirName);
+            CopyDirectory(subDir, destDir);
+        }
     }
 }

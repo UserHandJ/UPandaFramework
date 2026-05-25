@@ -12,9 +12,8 @@ public class HttpManager : LazyMonoSingletonBase<HttpManager>
     private HttpClient _client;
     private Dictionary<string, string> _globalHeaders = new Dictionary<string, string>();
 
-    protected override void Awake()
+    protected override void OnAwake()
     {
-        base.Awake();
         _client = gameObject.AddComponent<HttpClient>();
     }
 
@@ -47,7 +46,7 @@ public class HttpManager : LazyMonoSingletonBase<HttpManager>
             Url = url,
             Type = HttpRequestType.Post,
             Parameters = jsonData,
-            OnSuccess = (data, code) => onSuccess?.Invoke(data),
+            OnSuccess = (_data, code) => onSuccess?.Invoke(_data),
             OnFailure = onFailure
         };
         pack.CreateWebRequest();

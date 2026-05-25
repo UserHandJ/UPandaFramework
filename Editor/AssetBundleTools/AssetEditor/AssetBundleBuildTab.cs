@@ -13,7 +13,7 @@ namespace AssetBundleBrowser
     public class AssetBundleBuildTab
     {
         const string k_BuildPrefPrefix = "ABBBuild:";
-
+        private string outPutPath = "AssetBundles/";
         private string m_streamingPath = "Assets/StreamingAssets";
 
         [SerializeField]
@@ -46,7 +46,7 @@ namespace AssetBundleBrowser
         }
 
         private AssetBundleInspectTab m_InspectTab;
-        private static AssetBundleBrowserMain m_Main;
+        private AssetBundleBrowserMain m_Main;
 
         private AssetBundleClassificationWindow assetBundleClassification;
 
@@ -114,7 +114,6 @@ namespace AssetBundleBrowser
                 if (data != null)
                 {
                     m_UserData = data;
-                    m_Main.m_BuildTabData = m_UserData;
                 }
                 file.Close();
             }
@@ -182,7 +181,7 @@ namespace AssetBundleBrowser
 
         public void RepaintAssetBundleClassification()
         {
-            assetBundleClassification.ShowWindow();
+            assetBundleClassification.ShowWindow(m_Main);
         }
 
         internal void OnGUI()
@@ -205,7 +204,7 @@ namespace AssetBundleBrowser
                     m_UserData.m_BuildTarget = tgt;
                     if (m_UserData.m_UseDefaultPath)
                     {
-                        m_UserData.m_OutputPath = "Assets/AssetBundles/";
+                        m_UserData.m_OutputPath = outPutPath;
                         m_UserData.m_OutputPath += m_UserData.m_BuildTarget.ToString();
                         //EditorUserBuildSettings.SetPlatformSettings(EditorUserBuildSettings.activeBuildTarget.ToString(), "AssetBundleOutputPath", m_OutputPath);
                     }
@@ -445,7 +444,7 @@ namespace AssetBundleBrowser
         private void ResetPathToDefault()
         {
             m_UserData.m_UseDefaultPath = true;
-            m_UserData.m_OutputPath = "Assets/AssetBundles/";
+            m_UserData.m_OutputPath = outPutPath;
             m_UserData.m_OutputPath += m_UserData.m_BuildTarget.ToString();
             //EditorUserBuildSettings.SetPlatformSettings(EditorUserBuildSettings.activeBuildTarget.ToString(), "AssetBundleOutputPath", m_OutputPath);
         }

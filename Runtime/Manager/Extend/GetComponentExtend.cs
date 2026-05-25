@@ -1,14 +1,11 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
 /// <summary>
-/// 脚本扩展
+/// 组件获取方式扩展
 /// </summary>
-public static class ExtendScripts
+public static class GetComponentExtend
 {
     /// <summary>
     /// 获取组件的扩展方法
@@ -21,6 +18,21 @@ public static class ExtendScripts
         T t = obj.GetComponent<T>();
         if (t == null) t = obj.AddComponent<T>();
         return t;
+    }
+    public static T GetOrAddComponent<T>(this Transform obj) where T : Component
+    {
+        T t = obj.GetComponent<T>();
+        if (t == null) t = obj.gameObject.AddComponent<T>();
+        return t;
+    }
+
+    public static void DestoryChildren(this Transform obj)
+    {
+        if (obj.childCount == 0) return;
+        for (int i = obj.childCount - 1; i >= 0; i--)
+        {
+            GameObject.Destroy(obj.GetChild(i).gameObject);
+        }
     }
 
     /// <summary>

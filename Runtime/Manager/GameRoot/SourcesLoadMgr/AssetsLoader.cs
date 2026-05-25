@@ -32,18 +32,38 @@ namespace UPandaGF
         /// 资源关联存储文件后缀
         /// </summary>
         private string assetRefextension = ".assetref";
-        public async Task Init(AssetLoaddingMethod arg0, ABLoadMgr arg2)
+
+        [HideInInspector]
+        public AssetBundleClassificationWindowConfig AssetAESConfig;
+
+        public async Task Init(AssetLoaddingMethod arg0, string reomoteURL, string LoadAssetPath, ABSourcesRelated sourceRefArgBytes)
         {
+            PLogger.Log("AssetsLoader Init");
             method = arg0;
-            abLoadMgr = arg2;
             editorSourcesMgr = EditorSourcesMgr.Instance;
             sceneMgr = SceneMgr.Instance;
-            PLogger.Log("AssetsLoader init");
-            //资源关联数据
-            string assetRefpath = assetRefSavePath + assetRefName + assetRefextension;
-            byte[] b = await StreamingAssetsLoader.LoadBinaryDataAsync(assetRefpath);
-            sourceRef = LoadABSourcesRelated(b);
-            abLoadMgr.SetABSourcesRelated(sourceRef);
+            if (sourceRefArgBytes != null)
+            {
+                sourceRef = sourceRefArgBytes;
+            }
+            else
+            {
+                //资源关联数据
+                string assetRefpath = assetRefSavePath + assetRefName + assetRefextension;
+                byte[] b = await StreamingAssetsLoader.LoadBinaryDataAsync(assetRefpath);
+                sourceRef = LoadABSourcesRelated(b);
+            }
+
+
+            if (method == AssetLoaddingMethod.Assetbundles)
+            {
+                abLoadMgr = ABLoadMgr.Instance;
+                abLoadMgr.remoteURL = reomoteURL;
+                PLogger.Log($"主包：{sourceRef.mainBundleInfo.bundleName}，加载方式：{sourceRef.mainBundleInfo.loadPath}");
+                await abLoadMgr.Init(LoadAssetPath, sourceRef.mainBundleInfo.bundleName, sourceRef.mainBundleInfo.loadPath);
+                abLoadMgr.SetABSourcesRelated(sourceRef);
+            }
+            PLogger.Log("AssetsLoader Inited !!!");
         }
 
         public async Task<T> LoadAsync<T>(string path) where T : UnityEngine.Object
@@ -222,12 +242,15 @@ namespace UPandaGF
             }
         }
 
-        private ABSourcesRelated LoadABSourcesRelated(byte[] bytes)
+        public ABSourcesRelated LoadABSourcesRelated(byte[] bytes)
         {
             ABSourcesRelated obj = null;
-            string AESKEY = "111a222aaabbbccc";
-            string AESIV = "111b222aaabbbccc";
-            bytes = AESEncryption.AESDecrypt(bytes, AESKEY, AESIV);
+            if(AssetAESConfig.enable)
+            {
+                string AESKEY = AssetAESConfig.AESKEY;//"111a222aaabbbccc";
+                string AESIV = AssetAESConfig.AESIV;//"111b222aaabbbccc";
+                bytes = AESEncryption.AESDecrypt(bytes, AESKEY, AESIV);
+            }
             using (MemoryStream ms = new MemoryStream(bytes))
             {
                 BinaryFormatter bf = new BinaryFormatter();

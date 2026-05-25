@@ -9,6 +9,7 @@ using UnityEngine.Networking;
 
 namespace UPandaGF
 {
+    [Obsolete("已弃用！")]
     [System.Serializable]
     public class ABUpdataMgrArg
     {
@@ -22,7 +23,8 @@ namespace UPandaGF
     /// <summary>
     /// 资源更新组件
     /// </summary>
-    public class ABUpdataMgr : MonoBehaviour
+    [Obsolete("已弃用！")]
+    public class AssetBundelUpdataMgr : MonoBehaviour
     {
         private bool hasInit = false;
         /// <summary>
@@ -188,9 +190,9 @@ namespace UPandaGF
                             updataInfoCallBack("下载和更新AB包文件*9");
                             //下载待更新列表中的所有AB包
                             //下载
-                            DownLoadABFile((isOver) =>
+                            DownLoadABFile((dl_isOver) =>
                             {
-                                if (isOver)
+                                if (dl_isOver)
                                 {
                                     //下载完所有AB包文件后
                                     //把本地的AB包对比文件 更新为最新
@@ -246,7 +248,11 @@ namespace UPandaGF
             UnityWebRequest req = UnityWebRequest.Get(filePath);
             yield return req.SendWebRequest();
             //获取文件成功 继续往下执行
-            if (req.result == UnityWebRequest.Result.Success)
+#if UNITY_2020_1_OR_NEWER
+            if (req.result != UnityWebRequest.Result.Success)
+#else
+            if (req.isNetworkError || req.isHttpError)
+#endif
             {
                 AnalysisABCompareFileInfo(req.downloadHandler.text, localABInfo);
                 overCallBack(true);

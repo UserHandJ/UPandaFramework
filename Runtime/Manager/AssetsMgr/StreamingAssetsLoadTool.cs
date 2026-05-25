@@ -1,7 +1,7 @@
-using DG.Tweening.Plugins.Core.PathCore;
 using System;
 using System.Collections;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
@@ -77,8 +77,7 @@ public static class StreamingAssetsLoader
                 {
                     // 等待文件加载完成
                 }
-
-                if (request.result == UnityWebRequest.Result.Success)
+                if (CheckRequest(request))
                 {
                     return request.downloadHandler.text;
                 }
@@ -119,7 +118,7 @@ public static class StreamingAssetsLoader
                     await System.Threading.Tasks.Task.Yield(); // 异步等待下一帧
                 }
 
-                if (www.result != UnityWebRequest.Result.Success)
+                if (CheckRequest(www))
                 {
                     Debug.LogError($"{fullPath} 加载失败:\n{www.error}");
                 }
@@ -161,7 +160,7 @@ public static class StreamingAssetsLoader
             {
                 request.SendWebRequest();
                 yield return request;
-                if (request.result == UnityWebRequest.Result.Success)
+                if (CheckRequest(request))
                 {
                     text = request.downloadHandler.text;
                 }
@@ -208,7 +207,7 @@ public static class StreamingAssetsLoader
                     // 等待文件加载完成
                 }
 
-                if (request.result == UnityWebRequest.Result.Success)
+                if (CheckRequest(request))
                 {
                     return request.downloadHandler.data;
                 }
@@ -253,7 +252,7 @@ public static class StreamingAssetsLoader
                     await System.Threading.Tasks.Task.Yield();
                 }
 
-                if (www.result != UnityWebRequest.Result.Success)
+                if (CheckRequest(www))
                 {
                     throw new Exception($"{fullPath} 加载失败: \n{www.error}");
                 }
@@ -295,7 +294,7 @@ public static class StreamingAssetsLoader
                 var operation = www.SendWebRequest();
                 yield return operation;
 
-                if (www.result != UnityWebRequest.Result.Success)
+                if (CheckRequest(www))
                 {
                     PLogger.Log($"Failed to load binary data at {fullPath}: {www.error}");
                 }
@@ -336,6 +335,17 @@ public static class StreamingAssetsLoader
     public static bool CheckFile(string relativePath)
     {
         return File.Exists(CombineRelativePath(relativePath));
+    }
+
+    private static bool CheckRequest(UnityWebRequest request)
+    {
+        bool value = false;
+#if UNITY_2020_1_OR_NEWER
+        value = request.result != UnityWebRequest.Result.Success;
+#else
+        value = request.isNetworkError || request.isHttpError;
+#endif
+        return value;
     }
 }
 
