@@ -21,6 +21,8 @@ public static class StreamingAssetsLoader
     /// </summary>
     private static string GetStreamingAssetsPath()
     {
+        return Application.streamingAssetsPath;
+        /*
         string path = "";
 #if UNITY_EDITOR
         path = Application.streamingAssetsPath;
@@ -43,6 +45,7 @@ public static class StreamingAssetsLoader
             }
 #endif
         return path;
+        */
     }
 
     private static string CombineRelativePath(string relativePath)
@@ -53,6 +56,7 @@ public static class StreamingAssetsLoader
             relativePath = '/' + relativePath;
         }
         return streamingAssetsPath + relativePath;
+        
     }
 
 
@@ -77,7 +81,7 @@ public static class StreamingAssetsLoader
                 {
                     // 等待文件加载完成
                 }
-                if (CheckRequest(request))
+                if (IsRequestSuccess(request))
                 {
                     return request.downloadHandler.text;
                 }
@@ -118,13 +122,13 @@ public static class StreamingAssetsLoader
                     await System.Threading.Tasks.Task.Yield(); // 异步等待下一帧
                 }
 
-                if (CheckRequest(www))
+                if (IsRequestSuccess(www))
                 {
-                    Debug.LogError($"{fullPath} 加载失败:\n{www.error}");
+                    data = www.downloadHandler.text;
                 }
                 else
                 {
-                    data = www.downloadHandler.text;
+                    Debug.LogError($"{fullPath} 加载失败:\n{www.error}");
                 }
 
 
@@ -160,7 +164,7 @@ public static class StreamingAssetsLoader
             {
                 request.SendWebRequest();
                 yield return request;
-                if (CheckRequest(request))
+                if (IsRequestSuccess(request))
                 {
                     text = request.downloadHandler.text;
                 }
@@ -207,7 +211,7 @@ public static class StreamingAssetsLoader
                     // 等待文件加载完成
                 }
 
-                if (CheckRequest(request))
+                if (IsRequestSuccess(request))
                 {
                     return request.downloadHandler.data;
                 }
@@ -238,6 +242,11 @@ public static class StreamingAssetsLoader
     /// </summary>
     public static async Task<byte[]> LoadBinaryDataAsync(string relativePath)
     {
+        if (!CheckFile(relativePath))
+        {
+            Debug.LogError($"加载失败:{relativePath} ");
+            return null;
+        }
         string fullPath = CombineRelativePath(relativePath);
         if (Application.platform == RuntimePlatform.Android ||
             Application.platform == RuntimePlatform.WebGLPlayer)
@@ -252,9 +261,9 @@ public static class StreamingAssetsLoader
                     await System.Threading.Tasks.Task.Yield();
                 }
 
-                if (CheckRequest(www))
+                if (!IsRequestSuccess(www))
                 {
-                    throw new Exception($"{fullPath} 加载失败: \n{www.error}");
+                    Debug.LogError($"{fullPath} 加载失败: \n{www.error}");
                 }
 
                 return www.downloadHandler.data;
@@ -268,7 +277,8 @@ public static class StreamingAssetsLoader
             }
             catch (Exception e)
             {
-                throw new Exception($"{fullPath} 加载失败: \n {e.Message}");
+                Debug.LogError($"{fullPath} 加载失败: \n {e.Message}");
+                return null;
             }
         }
 
@@ -294,13 +304,13 @@ public static class StreamingAssetsLoader
                 var operation = www.SendWebRequest();
                 yield return operation;
 
-                if (CheckRequest(www))
+                if (IsRequestSuccess(www))
                 {
-                    PLogger.Log($"Failed to load binary data at {fullPath}: {www.error}");
+                    bytes = www.downloadHandler.data;
                 }
                 else
                 {
-                    bytes = www.downloadHandler.data;
+                    PLogger.Log($"Failed to load binary data at {fullPath}: {www.error}");
                 }
             }
         }
@@ -337,15 +347,13 @@ public static class StreamingAssetsLoader
         return File.Exists(CombineRelativePath(relativePath));
     }
 
-    private static bool CheckRequest(UnityWebRequest request)
+    private static bool IsRequestSuccess(UnityWebRequest request)
     {
-        bool value = false;
 #if UNITY_2020_1_OR_NEWER
-        value = request.result != UnityWebRequest.Result.Success;
+        return request.result == UnityWebRequest.Result.Success;
 #else
-        value = request.isNetworkError || request.isHttpError;
+        return !request.isNetworkError && !request.isHttpError;
 #endif
-        return value;
     }
 }
 
